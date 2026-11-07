@@ -1,0 +1,15 @@
+# Export rules for the public snapshot sync.
+#
+# The public GitHub repo receives a *curated snapshot* built with `git archive`,
+# which honours these rules. `.gitignore` does NOT help here: it has no effect on
+# files that are already tracked.
+#
+# Why `.gitea/` is excluded: it holds this instance's CI configuration, which is
+# useless off this instance and carries the internal clone URL and org path. The
+# automated public-tree check in ci.yml would otherwise fail on it.
+#
+# `.github/` is deliberately NOT excluded. This repository ships no GitHub CI
+# (deployment is Gitea-only by decision), so there is nothing to keep -- but the
+# rule is stated so nobody adds an exclusion that silently strips a future
+# .github/ directory.
+.gitea/          export-ignore

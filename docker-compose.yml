@@ -1,0 +1,79 @@
+name: docker-exec
+services:
+  docker-exec:
+    build:
+      context: ./
+    container_name: docker-exec
+    ports:
+      - "8091:8091"
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+    environment:
+      # `:?` makes `docker compose up` fail immediately when the secret is
+      # missing. Without it the value silently becomes "" and main.py raises at
+      # import time, which `restart: unless-stopped` turns into a crash loop.
+      - DOCKER_EXEC_API_KEY=${DOCKER_EXEC_API_KEY:?DOCKER_EXEC_API_KEY must be set}
+      # Only used in signed mode (see README). Falls back to the API key.
+      - DOCKER_EXEC_SIGNING_KEY=${DOCKER_EXEC_SIGNING_KEY:-}
+      # THIS IS THE TRUST LIST. A container is accepted only if its name is here
+      # AND it carries managed=true. Everything else gets 403, including
+      # docker-exec itself (managed=false).
+      #
+      # Name-based trust does not stop someone who can `docker run` on this host
+      # from reusing one of these names - and anyone who can `docker run` here is
+      # already effectively root, which is why this is accepted. See the README
+      # before adding a name, and never reuse a listed name for a throwaway
+      # container.
+      #
+      # WARNING - listing a container makes its ENVIRONMENT READABLE to any
+      # holder of the API key, because `env` is a valid command. At the time of
+      # writing this list contains containers holding:
+      #
+      #   openwebui-companion  GITEA_TOKEN, EXPOSE_GITEA_TOKEN, OWUI_TOKEN
+      #   open-webui           WEBUI_SECRET_KEY (forges admin sessions),
+      #                        OPENAI_API_KEY
+      #   gitea-runner*        GITEA_RUNNER_REGISTRATION_TOKEN (a rogue runner
+      #                        can run CI on every push, i.e. host root)
+      #
+      # openwebui-companion was added to unblock testing and should be removed
+      # once the checks are done. The others are here as the migration list;
+      # treat the API key as being as sensitive as all of the above combined.
+      #
+      # To switch to forgery-proof signatures instead, see "Signed mode" in the
+      # README: sign each container, then remove its name from this list.
+      - DOCKER_EXEC_ALLOWLIST=${DOCKER_EXEC_ALLOWLIST:-open-webui,crawl4ai,rag-service,gitea-runner,gitea-runner-2,gitea-runner-3,openwebui-companion}
+      - MAX_OUTPUT_BYTES=${MAX_OUTPUT_BYTES:-65536}
+      - EXEC_MAX_CONCURRENCY=${EXEC_MAX_CONCURRENCY:-16}
+      - EXEC_READ_BUDGET_FACTOR=${EXEC_READ_BUDGET_FACTOR:-4}
+    # Defence in depth: exec output is streamed and capped in code, but a cgroup
+    # limit means a single runaway command cannot take down the whole host.
+    #
+    # Compose-spec form. The legacy top-level `mem_limit` key still works but is
+    # v1-era and is ignored by Swarm; `deploy.resources.limits.memory` is the
+    # documented key and `docker compose` applies it in non-swarm mode too.
+    deploy:
+      resources:
+        limits:
+          memory: 512M
+    restart: unless-stopped
+    labels:
+      - "managed=false"   # it manages others; don't let itself be managed
+    # The deploy workflow waits on this (`compose up --wait`), so a container
+    # that starts but cannot reach the Docker socket now fails the deploy
+    # instead of reporting healthy.
+    healthcheck:
+      test:
+        - CMD
+        - python
+        - -c
+        - |
+          import urllib.request, sys
+          try:
+              urllib.request.urlopen("http://127.0.0.1:8091/health", timeout=5).read()
+          except Exception as exc:
+              print(exc)
+              sys.exit(1)
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 10s

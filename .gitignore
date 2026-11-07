@@ -1,0 +1,45 @@
+# ─── Secrets ───────────────────────────────────────────────────────────────────
+# The deploy path injects DOCKER_EXEC_API_KEY from a CI secret, so a .env file
+# should never be needed. It exists here because `docker compose up` without the
+# variable set is the obvious way to hit the `${VAR:?}` guard, and the obvious
+# next move is to create a .env -- which must never be committed.
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+*.crt
+
+# ─── Python ────────────────────────────────────────────────────────────────────
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+build/
+dist/
+*.egg-info/
+.eggs/
+.venv/
+venv/
+env/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.coverage
+.coverage.*
+htmlcov/
+coverage.xml
+
+# ─── Editors / OS ──────────────────────────────────────────────────────────────
+.vscode/
+.idea/
+*.swp
+*.swo
+.DS_Store
+Thumbs.db
+
+# ─── Local scratch ─────────────────────────────────────────────────────────────
+notes/
+tmp/
+scratch/
