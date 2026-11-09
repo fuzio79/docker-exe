@@ -1,0 +1,51 @@
+# Keep the build context to exactly what the image needs.
+#
+# The Dockerfile does only `COPY requirements.txt .` and `COPY main.py .`, so
+# everything else here is dead weight in the context. More importantly, without
+# this file `.git` (full history) and `.gitea` (CI config, internal clone URLs)
+# are sent to the daemon as part of every build.
+#
+# Anything added to the Dockerfile's COPY set must be allowed here, or the build
+# fails with a confusing "not found" rather than a clear error.
+
+# ─── VCS / CI ──────────────────────────────────────────────────────────────────
+.git
+.gitignore
+.gitattributes
+.gitea
+.github
+
+# ─── Not needed at runtime ─────────────────────────────────────────────────────
+tests
+*.md
+LICENSE
+CHANGELOG.md
+SECURITY.md
+requirements-dev.txt
+docker-compose.yml
+docker-compose.override.yml
+
+# ─── Python / editor / OS cruft ────────────────────────────────────────────────
+__pycache__
+*.py[cod]
+.venv
+venv
+env
+.pytest_cache
+.mypy_cache
+.ruff_cache
+.coverage
+.coverage.*
+htmlcov
+.vscode
+.idea
+*.swp
+.DS_Store
+
+# ─── Secrets ───────────────────────────────────────────────────────────────────
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+*.crt
